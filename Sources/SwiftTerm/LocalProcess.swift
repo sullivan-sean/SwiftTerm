@@ -116,7 +116,7 @@ public class LocalProcess {
     {
         totalRead += data.count
         DispatchQueue.global().async {
-            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
+            print ("[READ] count=\(data.count) received from host total=\(self.totalRead)")
         }
         
         if data.count == 0 {

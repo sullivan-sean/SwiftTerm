@@ -96,9 +96,11 @@ public class LocalProcess {
 
             DispatchIO.write(toFileDescriptor: childfd, data: ddata, runningHandlerOn: dispatchQueue, handler:  { dd, errno in
                 self.total += copyCount
-                print ("[SEND-\(copy)] completed bytes=\(self.total)")
-                if errno != 0 {
-                    print ("Error writing data to the child, errno=\(errno)")
+                DispatchQueue.global().async {
+                    print ("[SEND-\(copy)] completed bytes=\(self.total)")
+                    if errno != 0 {
+                        print ("Error writing data to the child, errno=\(errno)")
+                    }
                 }
             })
         }
@@ -113,7 +115,9 @@ public class LocalProcess {
     func childProcessRead (data: DispatchData, errno: Int32)
     {
         totalRead += data.count
-        print ("[READ] count=\(data.count) received from host total=\(totalRead)")
+        DispatchQueue.global().async {
+            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
+        }
         
         if data.count == 0 {
             childfd = -1

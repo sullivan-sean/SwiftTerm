@@ -54,7 +54,6 @@ public class LocalProcess {
     
     /* The PID of our subprocess */
     var shellPid: pid_t = 0
-    var debugIO = true
     
     /* number of sent requests */
     var sendCount = 0
@@ -93,15 +92,11 @@ public class LocalProcess {
         data.withUnsafeBytes { ptr in
             let ddata = DispatchData(bytes: ptr)
             let copyCount = ddata.count
-            if debugIO {
-                print ("[SEND-\(copy)] Queuing data to client: \(data) ")
-            }
+            print ("[SEND-\(copy)] Queuing data to client: \(data) ")
 
             DispatchIO.write(toFileDescriptor: childfd, data: ddata, runningHandlerOn: dispatchQueue, handler:  { dd, errno in
                 self.total += copyCount
-                if self.debugIO {
-                    print ("[SEND-\(copy)] completed bytes=\(self.total)")
-                }
+                print ("[SEND-\(copy)] completed bytes=\(self.total)")
                 if errno != 0 {
                     print ("Error writing data to the child, errno=\(errno)")
                 }
@@ -117,10 +112,8 @@ public class LocalProcess {
     var totalRead = 0
     func childProcessRead (data: DispatchData, errno: Int32)
     {
-        if debugIO {
-            totalRead += data.count
-            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
-        }
+        totalRead += data.count
+        print ("[READ] count=\(data.count) received from host total=\(totalRead)")
         
         if data.count == 0 {
             childfd = -1

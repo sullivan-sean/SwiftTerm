@@ -55,7 +55,7 @@ public class LocalProcess {
     
     /* The PID of our subprocess */
     var shellPid: pid_t = 0
-    var debugIO = false
+    var debugIO = true
     
     /* number of sent requests */
     var sendCount = 0

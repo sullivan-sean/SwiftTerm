@@ -78,8 +78,8 @@ public class LocalProcess {
     public init (delegate: LocalProcessDelegate, readQueue: DispatchQueue? = nil, sendQueue: DispatchQueue? = nil)
     {
         self.delegate = delegate
-        self.readQueue = readQueue ?? DispatchQueue.init(label: "dispatchio.readqueue", qos: .userInteractive)
-        self.sendQueue = sendQueue ?? DispatchQueue.main
+        self.readQueue = readQueue ?? DispatchQueue.global(qos: .userInteractive)
+        self.sendQueue = sendQueue ?? DispatchQueue.global(qos: .userInitiated)
     }
     
     /**
@@ -131,6 +131,10 @@ public class LocalProcess {
         }
         guard let data = _data else {
             return
+        }
+        if debugIO {
+            totalRead += data.count
+            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
         }
         var b: [UInt8] = Array.init(repeating: 0, count: data.count)
         

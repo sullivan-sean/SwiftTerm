@@ -21,7 +21,7 @@ public class CaptureTerminal : TerminalDelegate, LocalProcessDelegate {
     {
         self.onEnd = onEnd
         terminal = Terminal(delegate: self, options: options)
-        process = LocalProcess(delegate: self, dispatchQueue: queue)
+        process = LocalProcess(delegate: self, readQueue: queue, sendQueue: queue)
     }
     
     public func processTerminated(_ source: LocalProcess, exitCode: Int32?) {

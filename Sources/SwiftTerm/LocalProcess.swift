@@ -132,10 +132,6 @@ public class LocalProcess {
         guard let data = _data else {
             return
         }
-        if debugIO {
-            totalRead += data.count
-            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
-        }
         var b: [UInt8] = Array.init(repeating: 0, count: data.count)
         
         b.withUnsafeMutableBufferPointer({ ptr in

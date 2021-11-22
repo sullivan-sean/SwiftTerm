@@ -51,6 +51,7 @@ public class LocalProcess {
     
     /* The file descriptor used to communicate with the child process */
     public private(set) var childfd: Int32 = -1
+    var dispatchRead, dispatchWrite: DispatchIO?
     
     /* The PID of our subprocess */
     var shellPid: pid_t = 0
@@ -63,7 +64,8 @@ public class LocalProcess {
     weak var delegate: LocalProcessDelegate?
     
     // Queue used to send the data received from the local process
-    var dispatchQueue: DispatchQueue
+    var readQueue: DispatchQueue
+    var sendQueue: DispatchQueue
     
     /**
      * Initializes the LocalProcess runner and communication with the host happens via the provided
@@ -76,7 +78,8 @@ public class LocalProcess {
     public init (delegate: LocalProcessDelegate, dispatchQueue: DispatchQueue? = nil)
     {
         self.delegate = delegate
-        self.dispatchQueue = dispatchQueue ?? DispatchQueue.main
+        self.readQueue = DispatchQueue.global(qos: .userInteractive)
+        self.sendQueue = DispatchQueue.global(qos: .userInitiated)
     }
     
     /**
@@ -90,14 +93,15 @@ public class LocalProcess {
         }
         let copy = sendCount
         sendCount += 1
-        data.withUnsafeBytes { ptr in
+        
+        data.withUnsafeBytes { ptr in   
             let ddata = DispatchData(bytes: ptr)
             let copyCount = ddata.count
             if debugIO {
                 print ("[SEND-\(copy)] Queuing data to client: \(data) ")
             }
 
-            DispatchIO.write(toFileDescriptor: childfd, data: ddata, runningHandlerOn: DispatchQueue.global(qos: .userInitiated), handler:  { dd, errno in
+            DispatchIO.write(toFileDescriptor: childfd, data: ddata, runningHandlerOn: sendQueue, handler:  { dd, errno in
                 self.total += copyCount
                 if self.debugIO {
                     print ("[SEND-\(copy)] completed bytes=\(self.total)")
@@ -115,14 +119,9 @@ public class LocalProcess {
     
     /* Total number of bytes read */
     var totalRead = 0
-    func childProcessRead (data: DispatchData, errno: Int32)
+    func childProcessRead (done: Bool, _data: DispatchData?, errno: Int32)
     {
-        if debugIO {
-            totalRead += data.count
-            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
-        }
-        
-        if data.count == 0 {
+        if done && _data == nil  {
             childfd = -1
             if running {
                 running = false
@@ -130,7 +129,15 @@ public class LocalProcess {
             }
             return
         }
+        guard let data = _data else {
+            return
+        }
+        if debugIO {
+            totalRead += data.count
+            print ("[READ] count=\(data.count) received from host total=\(totalRead)")
+        }
         var b: [UInt8] = Array.init(repeating: 0, count: data.count)
+        
         b.withUnsafeMutableBufferPointer({ ptr in
             let _ = data.copyBytes(to: ptr)
             if let dir = loggingDir {
@@ -146,8 +153,10 @@ public class LocalProcess {
             }
         })
         delegate?.dataReceived(slice: b[...])
-        //print ("All data processed \(data.count)")
-        DispatchIO.read(fromFileDescriptor: childfd, maxLength: readBuffer.count, runningHandlerOn: dispatchQueue, handler: childProcessRead)
+        // if done is true, the handler will not be invoked again, so we need to reschedule
+        if done {
+            dispatchRead?.read(offset: 0, length: -1, queue: readQueue, ioHandler: childProcessRead)
+        }
     }
     
     var childMonitor: DispatchSourceProcess?
@@ -192,7 +201,7 @@ public class LocalProcess {
         }
         
         if let (shellPid, childfd) = PseudoTerminalHelpers.fork(andExec: executable, args: shellArgs, env: env, desiredWindowSize: &size) {
-            childMonitor = DispatchSource.makeProcessSource(identifier: shellPid, eventMask: .exit, queue: dispatchQueue)
+            childMonitor = DispatchSource.makeProcessSource(identifier: shellPid, eventMask: .exit, queue: readQueue)
             if let cm = childMonitor {
                 if #available(macOS 10.12, *) {
                     cm.activate()
@@ -205,7 +214,16 @@ public class LocalProcess {
             running = true
             self.childfd = childfd
             self.shellPid = shellPid
-            DispatchIO.read(fromFileDescriptor: childfd, maxLength: readBuffer.count, runningHandlerOn: dispatchQueue, handler: childProcessRead)
+            dispatchRead = DispatchIO (type: .stream, fileDescriptor: childfd, queue: readQueue) { err in
+                print ("Receive Got \(err)")
+            }
+            dispatchWrite = DispatchIO (type: .stream, fileDescriptor: childfd, queue: sendQueue) { err in
+                print ("Send Got \(err)")
+            }
+            dispatchRead?.setLimit(lowWater: 1)
+            dispatchRead?.setLimit(highWater: 8192)
+            
+            dispatchRead?.read(offset: 0, length: -1, queue: readQueue, ioHandler: childProcessRead)
         }
     }
     

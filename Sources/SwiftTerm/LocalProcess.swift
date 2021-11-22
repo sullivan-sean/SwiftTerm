@@ -79,7 +79,7 @@ public class LocalProcess {
     {
         self.delegate = delegate
         self.readQueue = DispatchQueue.init(label: "dispatchio.readqueue", qos: .userInteractive)
-        self.sendQueue = DispatchQueue.init(label: "dispatchio.sendqueue", qos: .userInitiated)
+        self.sendQueue = DispatchQueue.main
     }
     
     /**

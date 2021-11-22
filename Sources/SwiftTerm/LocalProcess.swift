@@ -101,15 +101,17 @@ public class LocalProcess {
                 print ("[SEND-\(copy)] Queuing data to client: \(data) ")
             }
 
-            DispatchIO.write(toFileDescriptor: childfd, data: ddata, runningHandlerOn: sendQueue, handler:  { dd, errno in
-                self.total += copyCount
-                if self.debugIO {
-                    print ("[SEND-\(copy)] completed bytes=\(self.total)")
-                }
-                if errno != 0 {
-                    print ("Error writing data to the child, errno=\(errno)")
-                }
-            })
+            dispatchWrite?.barrier {
+                DispatchIO.write(toFileDescriptor: self.childfd, data: ddata, runningHandlerOn: self.sendQueue, handler:  { dd, errno in
+                    self.total += copyCount
+                    if self.debugIO {
+                        print ("[SEND-\(copy)] completed bytes=\(self.total)")
+                    }
+                    if errno != 0 {
+                        print ("Error writing data to the child, errno=\(errno)")
+                    }
+                })
+            }
         }
 
     }

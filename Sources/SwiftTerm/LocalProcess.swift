@@ -75,11 +75,11 @@ public class LocalProcess {
      * child process when calling the `send(dataReceived:)` delegate method.  If the value provided is `nil`,
      * then this will default to `DispatchQueue.main`
      */
-    public init (delegate: LocalProcessDelegate, dispatchQueue: DispatchQueue? = nil)
+    public init (delegate: LocalProcessDelegate, readQueue: DispatchQueue? = nil, sendQueue: DispatchQueue? = nil)
     {
         self.delegate = delegate
-        self.readQueue = DispatchQueue.init(label: "dispatchio.readqueue", qos: .userInteractive)
-        self.sendQueue = DispatchQueue.main
+        self.readQueue = readQueue ?? DispatchQueue.init(label: "dispatchio.readqueue", qos: .userInteractive)
+        self.sendQueue = sendQueue ?? DispatchQueue.main
     }
     
     /**
